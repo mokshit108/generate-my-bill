@@ -1,8 +1,56 @@
+// processExcelFile.js
 import * as XLSX from 'xlsx';
+// Constants for cell references
+const CELL_REFS = {
+  COMPANY: {
+    NAME: 'B3',
+    ADDRESS: 'B4',
+    CONTACT_EMAIL: 'B5',
+    CONTACT_PHONE: 'B6',
+    TAX_ID: 'B7',
+    WEBSITE: 'B8',
+    BANK_NAME: 'B9',
+    ACCOUNT_NUMBER: 'B10',
+    IFSC_CODE: 'B11'
+  },
+  CUSTOMER: {
+    NAME: 'B14',
+    COMPANY_NAME: 'B15',
+    BILL_NUMBER: 'B16',
+    DATE: 'B17',
+    CLIENT_EMAIL: 'B18',
+    CLIENT_PHONE: 'B19',
+    ADDRESS: 'B20',
+    PAYMENT_TERMS: 'B21',
+    NOTES: 'B22'
+  },
+  ITEMS: {
+    START_ROW: 26,
+    END_ROW: 30,
+    DESCRIPTION_COL: 'B',
+    QUANTITY_COL: 'C',
+    UNIT_PRICE_COL: 'D',
+    AMOUNT_COL: 'E'
+  },
+  TOTALS: {
+    SUBTOTAL: 'E33',
+    TAX_RATE: 'E34',
+    TAX_AMOUNT: 'E35',
+    TOTAL_AMOUNT: 'E36'
+  }
+};
+
+// Helper functions
+const ensureString = (value) => value?.toString() || '';
+const ensureNumber = (value) => {
+  const num = Number(value || 0);
+  return Number(num.toFixed(2));
+};
 
 export const processExcelFile = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target.result);
@@ -13,44 +61,51 @@ export const processExcelFile = (file) => {
           throw new Error('Invalid template format');
         }
 
-        // Helper function to convert Excel date to YYYY-MM-DD format
-        const convertExcelDate = (excelDate) => {
-          if (!excelDate) return new Date().toISOString().split('T')[0];
-          const date = new Date(Math.round((excelDate - 25569) * 86400 * 1000));
-          return date.toISOString().split('T')[0];
+        const getCellValue = (cell) => {
+          const cellData = sheet[cell];
+          return cellData?.v ?? '';
         };
 
-        // Helper function to ensure string type
-        const ensureString = (value) => {
-          if (value === undefined || value === null) return '';
-          return String(value);
+        // Get stored user info
+        const userInfo = localStorage.getItem('userInvoiceInfo')
+          ? JSON.parse(localStorage.getItem('userInvoiceInfo'))
+          : {};
+
+        // Process billing company info
+        const billingCompanyInfo = {
+          companyName: userInfo.companyName || getCellValue(CELL_REFS.COMPANY.NAME),
+          companyAddress: userInfo.companyAddress || getCellValue(CELL_REFS.COMPANY.ADDRESS),
+          companyEmail: userInfo.companyEmail || getCellValue(CELL_REFS.COMPANY.CONTACT_EMAIL),
+          companyPhone: userInfo.companyPhone || getCellValue(CELL_REFS.COMPANY.CONTACT_PHONE),
+          taxId: userInfo.taxId || getCellValue(CELL_REFS.COMPANY.TAX_ID),
+          website: userInfo.website || getCellValue(CELL_REFS.COMPANY.WEBSITE),
+          bankName: userInfo.bankName || getCellValue(CELL_REFS.COMPANY.BANK_NAME),
+          accountNumber: userInfo.accountNumber || getCellValue(CELL_REFS.COMPANY.ACCOUNT_NUMBER),
+          ifscCode: userInfo.ifscCode || getCellValue(CELL_REFS.COMPANY.IFSC_CODE)
         };
 
-        // Helper function to ensure number type with 2 decimal places
-        const ensureNumber = (value) => {
-          const num = Number(value) || 0;
-          return Number(num.toFixed(2));
+        // Process customer info
+        const customerInfo = {
+          customerName: getCellValue(CELL_REFS.CUSTOMER.NAME),
+          customerCompanyName: getCellValue(CELL_REFS.CUSTOMER.COMPANY_NAME),
+          billNumber: getCellValue(CELL_REFS.CUSTOMER.BILL_NUMBER) || `INV-${Date.now()}`,
+          date: getCellValue(CELL_REFS.CUSTOMER.DATE) || new Date().toISOString().split('T')[0],
+          customerEmail: getCellValue(CELL_REFS.CUSTOMER.CLIENT_EMAIL),
+          customerPhone: getCellValue(CELL_REFS.CUSTOMER.CLIENT_PHONE),
+          customerAddress: getCellValue(CELL_REFS.CUSTOMER.ADDRESS),
+          paymentTerms: getCellValue(CELL_REFS.CUSTOMER.PAYMENT_TERMS),
+          notes: getCellValue(CELL_REFS.CUSTOMER.NOTES)
         };
 
-        // Extract basic information
-        const basicInfo = {};
-        for (let i = 2; i <= 10; i++) {
-          const field = sheet[`A${i}`]?.v;
-          const value = sheet[`B${i}`]?.v;
-          if (field) {
-            basicInfo[field] = value ?? '';
-          }
-        }
-
-        // Extract items (starting from row 14)
+        // Process items
         const items = [];
-        for (let i = 14; i <= 18; i++) {
-          const description = sheet[`B${i}`]?.v;
-          const quantity = sheet[`C${i}`]?.v;
-          const unitPrice = sheet[`D${i}`]?.v;
-          const amount = sheet[`E${i}`]?.v;
+        for (let i = CELL_REFS.ITEMS.START_ROW; i <= CELL_REFS.ITEMS.END_ROW; i++) {
+          const description = getCellValue(`${CELL_REFS.ITEMS.DESCRIPTION_COL}${i}`);
+          const quantity = getCellValue(`${CELL_REFS.ITEMS.QUANTITY_COL}${i}`);
+          const unitPrice = getCellValue(`${CELL_REFS.ITEMS.UNIT_PRICE_COL}${i}`);
+          const amount = getCellValue(`${CELL_REFS.ITEMS.AMOUNT_COL}${i}`);
 
-          if (description && quantity) {
+          if (description || quantity || unitPrice || amount) {
             items.push({
               description: ensureString(description),
               quantity: ensureNumber(quantity),
@@ -60,38 +115,32 @@ export const processExcelFile = (file) => {
           }
         }
 
-        // Extract calculations with proper number formatting
-        const subtotal = ensureNumber(sheet['E20']?.v);
-        const taxRate = ensureNumber(sheet['E21']?.v);
-        const taxAmount = ensureNumber(sheet['E22']?.v);
-        const totalAmount = ensureNumber(sheet['E23']?.v);
-
-        const processedData = {
-          customerName: ensureString(basicInfo['Customer Name']) || 'N/A',
-          companyName: ensureString(basicInfo['Company Name']) || 'N/A',
-          billNumber: ensureString(basicInfo['Bill Number']) || `BILL-${Math.random().toString(36).substr(2, 9)}`,
-          date: convertExcelDate(basicInfo['Date']),
-          email: ensureString(basicInfo['Email']) || 'N/A',
-          phone: ensureString(basicInfo['Phone']) || 'N/A',
-          address: ensureString(basicInfo['Address']) || 'N/A',
-          paymentTerms: ensureString(basicInfo['Payment Terms']) || 'N/A',
-          notes: ensureString(basicInfo['Notes']) || '',
-          items,
-          subtotal,
-          taxRate,
-          taxAmount,
-          totalAmount
+        // Process calculations
+        const calculations = {
+          subtotal: ensureNumber(getCellValue(CELL_REFS.TOTALS.SUBTOTAL)),
+          taxRate: ensureNumber(getCellValue(CELL_REFS.TOTALS.TAX_RATE)),
+          taxAmount: ensureNumber(getCellValue(CELL_REFS.TOTALS.TAX_AMOUNT)),
+          totalAmount: ensureNumber(getCellValue(CELL_REFS.TOTALS.TOTAL_AMOUNT))
         };
 
-        // Debug log to check values
-        console.log('Processed Data:', processedData);
+        const processedData = {
+          ...billingCompanyInfo,
+          ...customerInfo,
+          items,
+          ...calculations
+        };
 
         resolve(processedData);
       } catch (error) {
-        console.error('Error in Excel processing:', error);
-        reject(error);
+        console.error('Error processing Excel file:', error);
+        reject(new Error('Failed to process Excel file: ' + error.message));
       }
     };
+
+    reader.onerror = () => {
+      reject(new Error('Failed to read Excel file'));
+    };
+
     reader.readAsArrayBuffer(file);
   });
 };

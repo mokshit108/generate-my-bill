@@ -2,58 +2,76 @@ import * as XLSX from 'xlsx';
 
 export const downloadTemplate = () => {
   const wb = XLSX.utils.book_new();
+  const userInfo = localStorage.getItem('userInvoiceInfo')
+    ? JSON.parse(localStorage.getItem('userInvoiceInfo'))
+    : {};
 
-  // Combined Sheet Data
+  // Combined Sheet Data with formulas
   const combinedSheet = [
     // Basic Information
-    ['Bill Generator Template'],
-    ['Field', 'Value', 'Instructions'],
-    ['Customer Name', '', 'Enter customer\'s full name'],
-    ['Company Name', '', 'Enter company name'],
-    ['Bill Number', '', 'Enter unique bill identifier'],
+    ['Invoice Generator Template'],
+    ['Section 1: Your Company Information', 'Value', 'Instructions'],
+    ['Your Company Name', userInfo.companyName || '', 'Your company/business name'],
+    ['Your Company Address', userInfo.companyAddress || '', 'Your business address'],
+    ['Your Company Email', userInfo.companyEmail || '', 'Your business email for contact'],
+    ['Your Company Phone', userInfo.companyPhone || '', 'Your business phone number'],
+    ['Your Tax ID', userInfo.taxId || '', 'Your tax identification number'],
+    ['Your Website', userInfo.website || '', 'Your business website'],
+    ['Your Bank Name', userInfo.bankName || '', 'Your bank name'],
+    ['Your Account Number', userInfo.accountNumber || '', 'Your bank account number'],
+    ['Your IFSC Code', userInfo.ifscCode || '', 'Your bank IFSC code'],
+    [], // Empty row for spacing
+    ['Section 2: Customer Information', '', ''],
+    ['Customer Name', '', 'Customer\'s full name'],
+    ['Customer Company Name', '', 'Customer\'s company name'],
+    ['Bill Number', '', 'Unique bill identifier'],
     ['Date', '', 'Format: YYYY-MM-DD'],
-    ['Email', '', 'Enter customer\'s email'],
-    ['Phone', '', 'Enter contact number'],
-    ['Address', '', 'Enter complete address'],
+    ['Customer Email', '', 'Customer\'s email address'],
+    ['Customer Phone', '', 'Customer\'s contact number'],
+    ['Customer Address', '', 'Customer\'s complete address'],
     ['Payment Terms', '', 'e.g., Net 30, Due on Receipt'],
-    ['Notes', '', 'Enter additional notes if any'],
+    ['Notes', '', 'Additional notes if any'],
     [], // Empty row for spacing
-    // Items Table
+    // Items Table with formulas
+    ['Section 3: Invoice Items', '', '', '', ''],
     ['No.', 'Description', 'Quantity', 'Unit Price', 'Amount'],
-    [1, '', 0, 0.00, { f: 'C14*D14', v: 0 }], // Formula for Amount (Row 14)
-    [2, '', 0, 0.00, { f: 'C15*D15', v: 0 }], // Formula for Amount (Row 15)
-    [3, '', 0, 0.00, { f: 'C16*D16', v: 0 }], // Formula for Amount (Row 16)
-    [4, '', 0, 0.00, { f: 'C17*D17', v: 0 }], // Formula for Amount (Row 17)
-    [5, '', 0, 0.00, { f: 'C18*D18', v: 0 }], // Formula for Amount (Row 18)
+    [1, '', 0, 0, { f: 'C26*D26' }],
+    [2, '', 0, 0, { f: 'C27*D27' }],
+    [3, '', 0, 0, { f: 'C28*D28' }],
+    [4, '', 0, 0, { f: 'C29*D29' }],
+    [5, '', 0, 0, { f: 'C30*D30' }],
     [], // Empty row for spacing
-    // Calculations
-    ['', '', '', 'Subtotal:', { f: 'SUM(E14:E18)', v: 0 }], // Formula for Subtotal
+    // Calculations with formulas
+    ['Section 4: Totals', '', '', '', ''],
+    ['', '', '', 'Subtotal:', { f: 'SUM(E26:E30)' }],
     ['', '', '', 'Tax Rate (%):', 0],
-    ['', '', '', 'Tax Amount:', { f: 'E20*E21/100', v: 0 }], // Formula for Tax Amount
-    ['', '', '', 'Total Amount:', { f: 'E20+E22', v: 0 }] // Formula for Total Amount
+    ['', '', '', 'Tax Amount:', { f: 'E33*E34/100' }],
+    ['', '', '', 'Total Amount:', { f: 'E33+E35' }]
   ];
 
-  // Create the sheet
+  // Create and style the sheet
   const ws = XLSX.utils.aoa_to_sheet(combinedSheet);
 
-  // Add column widths for better readability
+  // Set column widths
   ws['!cols'] = [
-    { wch: 15 },  // Column A (No.)
-    { wch: 40 },  // Column B (Description)
-    { wch: 10 },  // Column C (Quantity)
-    { wch: 12 },  // Column D (Unit Price)
-    { wch: 12 }   // Column E (Amount)
+    { wch: 20 },  // A
+    { wch: 40 },  // B
+    { wch: 15 },  // C
+    { wch: 15 },  // D
+    { wch: 15 }   // E
   ];
 
-  // Style the header rows
-  ['A1:E1', 'A2:E2', 'A13:E13'].forEach(range => {
-    if (!ws[range]) ws[range] = {};
-    ws[range].s = { font: { bold: true }, fill: { fgColor: { rgb: "CCCCCC" } } };
+  // Add styling to headers
+  ['A1:E1', 'A2:E2', 'A13:E13', 'A24:E24', 'A32:E32'].forEach(range => {
+    ws[range] = {
+      s: {
+        font: { bold: true },
+        fill: { fgColor: { rgb: "CCCCCC" } }
+      }
+    };
   });
 
-  // Add the sheet to the workbook
-  XLSX.utils.book_append_sheet(wb, ws, 'Bill Template');
-
-  // Save the file
-  XLSX.writeFile(wb, 'bill-template.xlsx');
+  // Add the sheet to workbook and save
+  XLSX.utils.book_append_sheet(wb, ws, 'Invoice Template');
+  XLSX.writeFile(wb, 'invoice-template.xlsx');
 };

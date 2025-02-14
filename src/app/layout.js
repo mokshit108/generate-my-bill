@@ -1,7 +1,7 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Bill Generator',
+  title: 'Invoice Generator',
   description: 'Generate professional bills from Excel templates',
 };
 
