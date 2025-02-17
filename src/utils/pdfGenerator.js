@@ -1,16 +1,37 @@
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 
+const formatDate = (dateString) => {
+  try {
+    if (!dateString) return '';
+    if (dateString.includes('-')) {
+      const [year, month, day] = dateString.split('-');
+      if (year && month && day) {
+        return `${day}-${month}-${year}`;
+      }
+    }
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) {
+      const day = date.getDate().toString().padStart(2, '0');
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}-${month}-${year}`;
+    }
+    return dateString;
+  } catch (e) {
+    console.error('Error formatting date:', e);
+    return dateString;
+  }
+};
+
 export const generatePDF = async (preview, isPreview = false) => {
   try {
-    // Input validation and data preparation (same as before)
     if (!preview || typeof preview !== 'object') {
       throw new Error('Invalid preview data provided');
     }
 
     const safePreview = {
       ...preview,
-      // Section 1: Your Company Information
       companyName: String(preview.companyName || ''),
       companyAddress: String(preview.companyAddress || ''),
       companyEmail: String(preview.companyEmail || ''),
@@ -20,25 +41,19 @@ export const generatePDF = async (preview, isPreview = false) => {
       bankName: String(preview.bankName || ''),
       accountNumber: String(preview.accountNumber || ''),
       ifscCode: String(preview.ifscCode || ''),
-
-      // Section 2: Customer Information
       customerName: String(preview.customerName || ''),
       customerCompanyName: String(preview.customerCompanyName || ''),
       billNumber: String(preview.billNumber || ''),
-      date: String(preview.date || new Date().toISOString().split('T')[0]),
+      date: formatDate(preview.date || new Date().toISOString().split('T')[0]),
       customerEmail: String(preview.customerEmail || ''),
       customerPhone: String(preview.customerPhone || ''),
       customerAddress: String(preview.customerAddress || ''),
       paymentTerms: String(preview.paymentTerms || ''),
       notes: String(preview.notes || ''),
-
-      // Section 4: Calculations
       subtotal: Number(preview.subtotal || 0).toFixed(2),
       taxRate: Number(preview.taxRate || 0).toFixed(2),
       taxAmount: Number(preview.taxAmount || 0).toFixed(2),
       totalAmount: Number(preview.totalAmount || 0).toFixed(2),
-
-      // Section 3: Items
       items: Array.isArray(preview.items) ? preview.items.map(item => ({
         description: String(item.description || ''),
         quantity: Number(item.quantity || 0).toFixed(2),
@@ -54,7 +69,6 @@ export const generatePDF = async (preview, isPreview = false) => {
       compress: true
     });
 
-    // Set document properties (same as before)
     doc.setProperties({
       title: `Invoice - ${safePreview.billNumber}`,
       subject: 'Invoice Document',
@@ -63,178 +77,169 @@ export const generatePDF = async (preview, isPreview = false) => {
       keywords: 'invoice, bill, payment'
     });
 
-    // Define colors
+    // Updated colors for a more professional look
     const colors = {
-      primary: [40, 40, 40],    // Dark gray for main text
-      label: [100, 100, 100],   // Medium gray for labels
-      value: [0, 0, 0],         // Black for values
-      accent: [66, 139, 202]    // Blue for accents
+      primary: [51, 51, 51],     // Darker gray for main text
+      secondary: [102, 102, 102], // Medium gray for labels
+      accent: [71, 71, 71],      // Dark gray for headers
+      table: [66, 139, 202]      // Blue only for table
     };
 
-    // Document margins and spacing
+    // Optimized margins and spacing
     const margins = {
-      left: 20,
-      right: 20,
-      top: 20
+      left: 15,
+      right: 15,
+      top: 15
     };
     const pageWidth = doc.internal.pageSize.width;
     const contentWidth = pageWidth - margins.left - margins.right;
-    const columnWidth = contentWidth / 2 - 5; // 5mm gap between columns
+    const columnWidth = contentWidth / 2 - 3;
 
-    // Add "INVOICE" header
-    doc.setFontSize(28);
+    // Invoice header with updated styling
+    doc.setFontSize(24);
     doc.setFont(undefined, 'bold');
     doc.setTextColor(...colors.primary);
     doc.text('INVOICE', pageWidth / 2, margins.top, { align: 'center' });
 
-    let currentY = margins.top + 25;
+    let currentY = margins.top + 15;
 
-    // Add section labels
-    doc.setFontSize(12);
+    // Section labels with improved spacing
+    doc.setFontSize(11);
     doc.setTextColor(...colors.accent);
     doc.text('FROM:', margins.left, currentY);
-    doc.text('TO:', pageWidth / 2 + 5, currentY);
+    doc.text('TO:', pageWidth / 2 + 3, currentY);
 
-    currentY += 8;
+    currentY += 6;
 
-    // Function to add fields in a row
     const addFieldRow = (leftLabel, leftValue, rightLabel, rightValue, y) => {
-      // Left side
-      doc.setFontSize(10);
-      doc.setTextColor(...colors.label);
+      doc.setFontSize(9);
+      doc.setTextColor(...colors.secondary);
       doc.setFont(undefined, 'normal');
       doc.text(leftLabel, margins.left, y);
 
-      doc.setTextColor(...colors.value);
+      doc.setTextColor(...colors.primary);
       doc.setFont(undefined, 'bold');
-      const leftValueX = margins.left + 35;
-      const maxLeftWidth = columnWidth - 35;
+      const leftValueX = margins.left + 30;
+      const maxLeftWidth = columnWidth - 30;
       doc.text(leftValue, leftValueX, y, {
         maxWidth: maxLeftWidth
       });
 
-      // Right side
       if (rightLabel && rightValue) {
-        const rightColumnX = pageWidth / 2 + 5;
-        doc.setTextColor(...colors.label);
+        const rightColumnX = pageWidth / 2 + 3;
+        doc.setTextColor(...colors.secondary);
         doc.setFont(undefined, 'normal');
         doc.text(rightLabel, rightColumnX, y);
 
-        doc.setTextColor(...colors.value);
+        doc.setTextColor(...colors.primary);
         doc.setFont(undefined, 'bold');
-        const rightValueX = rightColumnX + 35;
-        const maxRightWidth = columnWidth - 35;
+        const rightValueX = rightColumnX + 30;
+        const maxRightWidth = columnWidth - 30;
         doc.text(rightValue, rightValueX, y, {
           maxWidth: maxRightWidth
         });
       }
     };
 
-    // Company and Customer Information
-    const lineHeight = 8;
+    // Optimized line height
+    const lineHeight = 6;
+
+    // Company and Customer Information with tighter spacing
     addFieldRow('Company:', safePreview.companyName, 'Company:', safePreview.customerCompanyName, currentY);
     currentY += lineHeight;
 
-    // Add multiline address with proper spacing
-    doc.setTextColor(...colors.label);
+    doc.setTextColor(...colors.secondary);
     doc.setFont(undefined, 'normal');
     doc.text('Address:', margins.left, currentY);
-    doc.text('Address:', pageWidth / 2 + 5, currentY);
+    doc.text('Address:', pageWidth / 2 + 3, currentY);
 
-    doc.setTextColor(...colors.value);
+    doc.setTextColor(...colors.primary);
     doc.setFont(undefined, 'bold');
-    const addressLines = doc.splitTextToSize(safePreview.companyAddress, columnWidth - 35);
-    const customerAddressLines = doc.splitTextToSize(safePreview.customerAddress, columnWidth - 35);
+    const addressLines = doc.splitTextToSize(safePreview.companyAddress, columnWidth - 30);
+    const customerAddressLines = doc.splitTextToSize(safePreview.customerAddress, columnWidth - 30);
 
     addressLines.forEach((line, index) => {
-      doc.text(line, margins.left + 35, currentY + (index * 5));
+      doc.text(line, margins.left + 30, currentY + (index * 4));
     });
 
     customerAddressLines.forEach((line, index) => {
-      doc.text(line, pageWidth / 2 + 40, currentY + (index * 5));
+      doc.text(line, pageWidth / 2 + 33, currentY + (index * 4));
     });
 
-    // Adjust currentY based on the longest address
     const maxLines = Math.max(addressLines.length, customerAddressLines.length);
-    currentY += (maxLines * 5) + lineHeight;
+    currentY += (maxLines * 4) + lineHeight;
 
-    // Continue with other fields
+    // Contact Information
     addFieldRow('Email:', safePreview.companyEmail, 'Email:', safePreview.customerEmail, currentY);
     currentY += lineHeight;
-
     addFieldRow('Phone:', safePreview.companyPhone, 'Phone:', safePreview.customerPhone, currentY);
     currentY += lineHeight;
-
     addFieldRow('Tax ID:', safePreview.taxId, '', '', currentY);
     currentY += lineHeight;
-
     addFieldRow('Website:', safePreview.website, '', '', currentY);
-    currentY += lineHeight * 1.5;
+    currentY += lineHeight;
 
-    // Bank Details Section
-    doc.setFontSize(12);
+    // Bank Details with improved spacing
+    doc.setFontSize(11);
     doc.setTextColor(...colors.accent);
-    doc.text('BANK DETAILS', margins.left, currentY);
+    doc.text('BANK DETAILS', margins.left, currentY + 3);
     currentY += 8;
 
-    // Add bank details
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     addFieldRow('Bank Name:', safePreview.bankName, 'Invoice No:', safePreview.billNumber, currentY);
     currentY += lineHeight;
-
     addFieldRow('Account No:', safePreview.accountNumber, 'Date:', safePreview.date, currentY);
     currentY += lineHeight;
-
     addFieldRow('IFSC Code:', safePreview.ifscCode, 'Terms:', safePreview.paymentTerms, currentY);
-    currentY += lineHeight * 1.5;
+    currentY += lineHeight;
 
-    // Add separator line
+    // Separator line
     doc.setDrawColor(...colors.accent);
-    doc.setLineWidth(0.5);
-    doc.line(margins.left, currentY, pageWidth - margins.right, currentY);
-    currentY += 10;
+    doc.setLineWidth(0.3);
+    doc.line(margins.left, currentY + 2, pageWidth - margins.right, currentY + 2);
+    currentY += 8;
 
-    // Prepare items table
+    // Items table with optimized styling
     const tableData = [
       ['Description', 'Quantity', 'Unit Price', 'Amount'],
       ...safePreview.items.map(item => [
         item.description,
         item.quantity,
-        `$${item.unitPrice}`,
-        `$${item.amount}`
+        `${item.unitPrice}`,
+        `${item.amount}`
       ])
     ];
 
-    // Add summary rows
     const summaryRows = [
-      ['', '', 'Subtotal:', `$${safePreview.subtotal}`],
-      ['', '', `Tax (${safePreview.taxRate}%)`, `$${safePreview.taxAmount}`],
-      ['', '', 'Total Amount:', `$${safePreview.totalAmount}`]
+      ['', '', 'Subtotal:', `${safePreview.subtotal}`],
+      ['', '', `Tax (${safePreview.taxRate}%)`, `${safePreview.taxAmount}`],
+      ['', '', 'Total Amount:', `${safePreview.totalAmount}`]
     ];
 
-    // Configure and draw table
+    // Enhanced table styling
     doc.autoTable({
       startY: currentY,
       head: [tableData[0]],
       body: [...tableData.slice(1), ...summaryRows],
       theme: 'grid',
       styles: {
-        fontSize: 10,
-        cellPadding: 6,
+        fontSize: 9,
+        cellPadding: 4,
         overflow: 'linebreak',
         cellWidth: 'wrap',
-        textColor: [40, 40, 40]
+        textColor: colors.primary
       },
       headStyles: {
-        fillColor: colors.accent,
+        fillColor: colors.table,
         textColor: 255,
-        fontStyle: 'bold'
+        fontStyle: 'bold',
+        fontSize: 9
       },
       columnStyles: {
         0: { cellWidth: 'auto' },
-        1: { cellWidth: 30, halign: 'right' },
-        2: { cellWidth: 30, halign: 'right' },
-        3: { cellWidth: 30, halign: 'right' }
+        1: { cellWidth: 25, halign: 'right' },
+        2: { cellWidth: 25, halign: 'right' },
+        3: { cellWidth: 25, halign: 'right' }
       },
       margin: { left: margins.left, right: margins.right },
       didParseCell: (data) => {
@@ -245,32 +250,32 @@ export const generatePDF = async (preview, isPreview = false) => {
       }
     });
 
-    // Add notes section
+    // Notes section with improved spacing
     if (safePreview.notes) {
-      const notesY = doc.autoTable.previous.finalY + 20;
-      doc.setFontSize(11);
+      const notesY = doc.autoTable.previous.finalY + 10;
+      doc.setFontSize(10);
       doc.setFont(undefined, 'bold');
       doc.setTextColor(...colors.accent);
       doc.text('Notes:', margins.left, notesY);
 
       doc.setFont(undefined, 'normal');
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setTextColor(...colors.primary);
-      doc.text(safePreview.notes, margins.left, notesY + 7, {
+      doc.text(safePreview.notes, margins.left, notesY + 5, {
         maxWidth: contentWidth,
-        lineHeightFactor: 1.5
+        lineHeightFactor: 1.3
       });
     }
 
-    // Add footer
+    // Footer with optimized positioning
     const pageHeight = doc.internal.pageSize.height;
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setTextColor(...colors.primary);
-    doc.text('Thank you for your business!', pageWidth / 2, pageHeight - 20, {
+    doc.text('Thank you for your business!', pageWidth / 2, pageHeight - 15, {
       align: 'center'
     });
 
-    // Add preview watermark if needed
+    // Preview watermark if needed
     if (isPreview) {
       doc.setTextColor(200, 200, 200);
       doc.setFontSize(60);

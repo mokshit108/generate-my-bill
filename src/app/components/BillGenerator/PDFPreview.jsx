@@ -1,16 +1,28 @@
 'use client'
-import { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+
 const PDFPreview = ({ pdfBlob }) => {
-  if (!pdfBlob) return null;
+  const [pdfUrl, setPdfUrl] = useState('');
 
-  const pdfUrl = URL.createObjectURL(pdfBlob);
-
-  // Cleanup URL when component unmounts
   useEffect(() => {
+    if (!pdfBlob) {
+      setPdfUrl('');
+      return;
+    }
+
+    // Create new URL for the updated PDF blob
+    const newUrl = URL.createObjectURL(pdfBlob);
+    setPdfUrl(newUrl);
+
+    // Cleanup previous URL when blob changes or component unmounts
     return () => {
-      URL.revokeObjectURL(pdfUrl);
+      if (newUrl) {
+        URL.revokeObjectURL(newUrl);
+      }
     };
-  }, [pdfUrl]);
+  }, [pdfBlob]); // Re-run when pdfBlob changes
+
+  if (!pdfBlob || !pdfUrl) return null;
 
   return (
     <div className="space-y-4">
@@ -18,6 +30,7 @@ const PDFPreview = ({ pdfBlob }) => {
       <div className="border rounded-lg overflow-hidden bg-white shadow-inner">
         <div className="relative" style={{ paddingTop: '141.4%' }}> {/* A4 aspect ratio */}
           <iframe
+            key={pdfUrl} // Add key to force iframe refresh
             src={pdfUrl}
             className="absolute top-0 left-0 w-full h-full"
             title="PDF Preview"

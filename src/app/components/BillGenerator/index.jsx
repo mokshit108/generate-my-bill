@@ -20,6 +20,7 @@ const BillGenerator = () => {
   const [error, setError] = useState(null);
   const [showUserForm, setShowUserForm] = useState(false);
   const [formKey, setFormKey] = useState(0); // For form reset handling
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
 
   // Helper function to verify if something is a valid Blob
   const isValidBlob = (blob) => {
@@ -54,24 +55,75 @@ const BillGenerator = () => {
     };
   }, [pdfBlob]);
 
-  const generatePDFPreview = async (data) => {
-    try {
-      const blob = await createPDFBlob(data, true);
-      setPdfBlob(blob);
-    } catch (err) {
-      console.error("Error generating PDF preview:", err);
-      setError("Failed to generate PDF preview");
-    }
+  // Effect to update PDF preview when preview data changes
+  useEffect(() => {
+    let isMounted = true;
+
+    const updatePDFPreview = async () => {
+      if (!preview || isPdfGenerating) return;
+
+      try {
+        setIsPdfGenerating(true);
+        const blob = await createPDFBlob(preview, true);
+        if (isMounted) {
+          setPdfBlob(blob);
+        }
+      } catch (err) {
+        console.error("Error generating PDF preview:", err);
+        if (isMounted) {
+          setError("Failed to generate PDF preview");
+        }
+      } finally {
+        if (isMounted) {
+          setIsPdfGenerating(false);
+        }
+      }
+    };
+
+    updatePDFPreview();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [preview, isPdfGenerating]);
+
+  const handlePreviewChange = (newPreviewData) => {
+    setPreview(newPreviewData);
+    // PDF preview will be automatically updated by the effect
   };
+
+
+
+  // const generatePDFPreview = async (data) => {
+  //   try {
+  //     const blob = await createPDFBlob(data, true);
+  //     setPdfBlob(blob);
+  //   } catch (err) {
+  //     console.error("Error generating PDF preview:", err);
+  //     setError("Failed to generate PDF preview");
+  //   }
+  // };
+
+  // In your parent component:
+const handleSave = async (data) => {
+  try {
+    // Make your API call or save to database here
+    // Or if using local storage:
+    localStorage.setItem('invoice', JSON.stringify(data));
+    setPreview(data)
+  } catch (error) {
+    throw error; // This will be caught by the BillPreview component
+  }
+};
 
   const handleUserInfoSave = (userData) => {
     setShowUserForm(false);
     if (preview) {
       const updatedPreview = mergeUserInfoWithExcelData(preview, userData);
       setPreview(updatedPreview);
-      generatePDFPreview(updatedPreview);
+      console.log(updatedPreview, "up reivew");
     }
-    setFormKey(prev => prev + 1); // Reset form state
+    setFormKey((prev) => prev + 1); // Reset form state
   };
 
   const handleFileUpload = async (event) => {
@@ -90,7 +142,7 @@ const BillGenerator = () => {
       }
       const mergedData = mergeUserInfoWithExcelData(processedData);
       setPreview(mergedData);
-      await generatePDFPreview(mergedData);
+      // await generatePDFPreview(mergedData);
     } catch (error) {
       console.error("Error processing file:", error);
       setError(
@@ -176,14 +228,21 @@ const BillGenerator = () => {
             )}
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg" role="alert">
+              <div
+                className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg"
+                role="alert"
+              >
                 <span className="block sm:inline">{error}</span>
               </div>
             )}
 
             {preview && !loading && (
               <div className="space-y-8">
-                <BillPreview preview={preview} />
+                <BillPreview
+  preview={preview}
+  onPreviewChange={setPreview}
+  onSave={handleSave}
+/>
 
                 {pdfBlob && isValidBlob(pdfBlob) && (
                   <PDFPreview pdfBlob={pdfBlob} />
