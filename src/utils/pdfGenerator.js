@@ -77,50 +77,52 @@ export const generatePDF = async (preview, isPreview = false) => {
       keywords: 'invoice, bill, payment'
     });
 
-    // Updated colors for a more professional look
+    // Formal color scheme
     const colors = {
-      primary: [51, 51, 51],     // Darker gray for main text
+      primary: [51, 51, 51],     // Dark gray for main text
       secondary: [102, 102, 102], // Medium gray for labels
       accent: [71, 71, 71],      // Dark gray for headers
-      table: [66, 139, 202]      // Blue only for table
+      tableHeader: [33, 82, 135], // Formal blue for table headers
+      tableBorder: [200, 200, 200] // Light grey for table borders
     };
 
-    // Optimized margins and spacing
+    // Compact margins
     const margins = {
       left: 15,
       right: 15,
       top: 15
     };
+
     const pageWidth = doc.internal.pageSize.width;
     const contentWidth = pageWidth - margins.left - margins.right;
-    const columnWidth = contentWidth / 2 - 3;
+    const columnWidth = contentWidth / 2 - 2;
 
-    // Invoice header with updated styling
-    doc.setFontSize(24);
-    doc.setFont(undefined, 'bold');
+    // Compact header
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(...colors.primary);
     doc.text('INVOICE', pageWidth / 2, margins.top, { align: 'center' });
 
-    let currentY = margins.top + 15;
+    let currentY = margins.top + 15; // Increased spacing after header
 
-    // Section labels with improved spacing
-    doc.setFontSize(11);
-    doc.setTextColor(...colors.accent);
+    // Compact section headers
+    doc.setFontSize(10);
+    doc.setTextColor(...colors.primary);
     doc.text('FROM:', margins.left, currentY);
     doc.text('TO:', pageWidth / 2 + 3, currentY);
 
-    currentY += 6;
+    currentY += 7; // Increased spacing after section headers
 
     const addFieldRow = (leftLabel, leftValue, rightLabel, rightValue, y) => {
-      doc.setFontSize(9);
+      doc.setFontSize(10); // Increased font size for keys and values
       doc.setTextColor(...colors.secondary);
-      doc.setFont(undefined, 'normal');
+      doc.setFont('helvetica', 'bold');
       doc.text(leftLabel, margins.left, y);
 
       doc.setTextColor(...colors.primary);
-      doc.setFont(undefined, 'bold');
-      const leftValueX = margins.left + 30;
-      const maxLeftWidth = columnWidth - 30;
+      doc.setFont('helvetica', 'normal');
+      const leftValueX = margins.left + 18; // Reduced space between key and value
+      const maxLeftWidth = columnWidth - 18;
       doc.text(leftValue, leftValueX, y, {
         maxWidth: maxLeftWidth
       });
@@ -128,80 +130,100 @@ export const generatePDF = async (preview, isPreview = false) => {
       if (rightLabel && rightValue) {
         const rightColumnX = pageWidth / 2 + 3;
         doc.setTextColor(...colors.secondary);
-        doc.setFont(undefined, 'normal');
+        doc.setFont('helvetica', 'bold');
         doc.text(rightLabel, rightColumnX, y);
 
         doc.setTextColor(...colors.primary);
-        doc.setFont(undefined, 'bold');
-        const rightValueX = rightColumnX + 30;
-        const maxRightWidth = columnWidth - 30;
+        doc.setFont('helvetica', 'normal');
+        const rightValueX = rightColumnX + 18; // Reduced space between key and value
+        const maxRightWidth = columnWidth - 18;
         doc.text(rightValue, rightValueX, y, {
           maxWidth: maxRightWidth
         });
       }
     };
 
-    // Optimized line height
-    const lineHeight = 6;
+    // Reduced line height
+    const lineHeight = 6; // Slightly increased line height
 
-    // Company and Customer Information with tighter spacing
+    // Company and Customer Information
     addFieldRow('Company:', safePreview.companyName, 'Company:', safePreview.customerCompanyName, currentY);
-    currentY += lineHeight;
+    currentY += lineHeight + 2; // Increased spacing after company info
 
+    // Address in the same line (FROM)
+    doc.setFontSize(10);
     doc.setTextColor(...colors.secondary);
-    doc.setFont(undefined, 'normal');
+    doc.setFont('helvetica', 'bold');
     doc.text('Address:', margins.left, currentY);
-    doc.text('Address:', pageWidth / 2 + 3, currentY);
 
     doc.setTextColor(...colors.primary);
-    doc.setFont(undefined, 'bold');
-    const addressLines = doc.splitTextToSize(safePreview.companyAddress, columnWidth - 30);
-    const customerAddressLines = doc.splitTextToSize(safePreview.customerAddress, columnWidth - 30);
+    doc.setFont('helvetica', 'normal');
+    const addressLines = doc.splitTextToSize(safePreview.companyAddress, columnWidth - 18);
+    const customerAddressLines = doc.splitTextToSize(safePreview.customerAddress, columnWidth - 18);
 
-    addressLines.forEach((line, index) => {
-      doc.text(line, margins.left + 30, currentY + (index * 4));
-    });
+    // Display FROM address in the same line
+    doc.text(addressLines[0], margins.left + 18, currentY);
+    if (addressLines.length > 1) {
+      for (let i = 1; i < addressLines.length; i++) {
+        currentY += 4; // Adjust for multi-line addresses
+        doc.text(addressLines[i], margins.left, currentY); // Align with the start of the line
+      }
+    }
 
-    customerAddressLines.forEach((line, index) => {
-      doc.text(line, pageWidth / 2 + 33, currentY + (index * 4));
-    });
+    // Address in the same line (TO)
+    doc.setTextColor(...colors.secondary);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Address:', pageWidth / 2 + 3, currentY - (addressLines.length - 1) * 4);
+
+    doc.setTextColor(...colors.primary);
+    doc.setFont('helvetica', 'normal');
+    // Display TO address in the same line
+    doc.text(customerAddressLines[0], pageWidth / 2 + 3, currentY);
+    if (customerAddressLines.length > 1) {
+      for (let i = 1; i < customerAddressLines.length; i++) {
+        currentY += 4; // Adjust for multi-line addresses
+        doc.text(customerAddressLines[i], pageWidth / 2 + 1, currentY); // Align with the start of the line
+      }
+    }
 
     const maxLines = Math.max(addressLines.length, customerAddressLines.length);
-    currentY += (maxLines * 4) + lineHeight;
+    currentY += (maxLines * 4) + lineHeight + 4; // Increased spacing after address
 
     // Contact Information
     addFieldRow('Email:', safePreview.companyEmail, 'Email:', safePreview.customerEmail, currentY);
-    currentY += lineHeight;
+    currentY += lineHeight + 2; // Increased spacing after email
     addFieldRow('Phone:', safePreview.companyPhone, 'Phone:', safePreview.customerPhone, currentY);
-    currentY += lineHeight;
+    currentY += lineHeight + 2; // Increased spacing after phone
     addFieldRow('Tax ID:', safePreview.taxId, '', '', currentY);
-    currentY += lineHeight;
-    addFieldRow('Website:', safePreview.website, '', '', currentY);
-    currentY += lineHeight;
+    currentY += lineHeight + 6; // Increased spacing after tax ID
 
-    // Bank Details with improved spacing
-    doc.setFontSize(11);
-    doc.setTextColor(...colors.accent);
-    doc.text('BANK DETAILS', margins.left, currentY + 3);
-    currentY += 8;
+    // More gap above Bank Details
+    currentY += 4; // Additional spacing
 
-    doc.setFontSize(9);
-    addFieldRow('Bank Name:', safePreview.bankName, 'Invoice No:', safePreview.billNumber, currentY);
-    currentY += lineHeight;
-    addFieldRow('Account No:', safePreview.accountNumber, 'Date:', safePreview.date, currentY);
-    currentY += lineHeight;
-    addFieldRow('IFSC Code:', safePreview.ifscCode, 'Terms:', safePreview.paymentTerms, currentY);
-    currentY += lineHeight;
+    // Bank Details section (bold)
+    doc.setFontSize(10);
+    doc.setTextColor(...colors.primary);
+    doc.setFont('helvetica', 'bold'); // Bold for bank details
+    doc.text('BANK DETAILS', margins.left, currentY + 2);
+    currentY += 8; // Increased spacing after bank details header
 
-    // Separator line
-    doc.setDrawColor(...colors.accent);
+    doc.setFontSize(10); // Increased font size for bank details
+    addFieldRow('Bank:', safePreview.bankName, 'Invoice No:', `  ${safePreview.billNumber}`, currentY); // Added space for Invoice No
+    currentY += lineHeight + 2; // Increased spacing after bank name
+    addFieldRow('Account:', safePreview.accountNumber, 'Date:', safePreview.date, currentY);
+    currentY += lineHeight + 2; // Increased spacing after account number
+    addFieldRow('IFSC:', safePreview.ifscCode, 'Terms:', safePreview.paymentTerms, currentY);
+    currentY += lineHeight + 6; // Increased spacing after IFSC
+
+    // Compact separator
+    doc.setDrawColor(...colors.primary);
     doc.setLineWidth(0.3);
-    doc.line(margins.left, currentY + 2, pageWidth - margins.right, currentY + 2);
-    currentY += 8;
+    doc.line(margins.left, currentY, pageWidth - margins.right, currentY);
+    currentY += 6; // Increased spacing after separator
 
-    // Items table with optimized styling
+    // Items table
     const tableData = [
-      ['Description', 'Quantity', 'Unit Price', 'Amount'],
+      ['Description', 'Qty', 'Price', 'Amount'],
       ...safePreview.items.map(item => [
         item.description,
         item.quantity,
@@ -213,72 +235,79 @@ export const generatePDF = async (preview, isPreview = false) => {
     const summaryRows = [
       ['', '', 'Subtotal:', `${safePreview.subtotal}`],
       ['', '', `Tax (${safePreview.taxRate}%)`, `${safePreview.taxAmount}`],
-      ['', '', 'Total Amount:', `${safePreview.totalAmount}`]
+      ['', '', 'Total:', `${safePreview.totalAmount}`]
     ];
 
-    // Enhanced table styling
+    // Compact table styling
     doc.autoTable({
       startY: currentY,
       head: [tableData[0]],
       body: [...tableData.slice(1), ...summaryRows],
       theme: 'grid',
       styles: {
-        fontSize: 9,
-        cellPadding: 4,
+        fontSize: 10, // Increased font size for table
+        cellPadding: 3,
         overflow: 'linebreak',
         cellWidth: 'wrap',
-        textColor: colors.primary
+        textColor: colors.primary,
+        font: 'helvetica',
+        lineColor: colors.tableBorder, // Light grey for table borders
+        lineWidth: 0.2
       },
       headStyles: {
-        fillColor: colors.table,
-        textColor: 255,
+        fillColor: colors.tableHeader, // Formal blue for table headers
+        textColor: 255, // White text for headers
         fontStyle: 'bold',
-        fontSize: 9
+        fontSize: 10, // Increased font size for headers
+        cellPadding: 4
       },
       columnStyles: {
-        0: { cellWidth: 'auto' },
-        1: { cellWidth: 25, halign: 'right' },
-        2: { cellWidth: 25, halign: 'right' },
-        3: { cellWidth: 25, halign: 'right' }
+        0: { cellWidth: 'auto', halign: 'left' }, // Left align description
+        1: { cellWidth: 20, halign: 'center' },  // Center align quantity
+        2: { cellWidth: 25, halign: 'center' },  // Center align price
+        3: { cellWidth: 25, halign: 'center' }   // Center align amount
       },
       margin: { left: margins.left, right: margins.right },
       didParseCell: (data) => {
         if (data.row.index >= tableData.length - 1) {
-          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fontStyle = 'normal';
           data.cell.styles.textColor = colors.primary;
+          data.cell.styles.fontSize = 10; // Increased font size for summary rows
+          data.cell.styles.halign = 'left'; // Left align subtotal, tax, and total
         }
       }
     });
 
-    // Notes section with improved spacing
+    // Compact notes section
     if (safePreview.notes) {
-      const notesY = doc.autoTable.previous.finalY + 10;
-      doc.setFontSize(10);
-      doc.setFont(undefined, 'bold');
-      doc.setTextColor(...colors.accent);
+      const notesY = doc.autoTable.previous.finalY + 8; // Increased spacing after table
+      doc.setFontSize(10); // Increased font size for notes
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...colors.primary);
       doc.text('Notes:', margins.left, notesY);
 
-      doc.setFont(undefined, 'normal');
+      doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
-      doc.setTextColor(...colors.primary);
-      doc.text(safePreview.notes, margins.left, notesY + 5, {
+      doc.setTextColor(...colors.secondary);
+      doc.text(safePreview.notes, margins.left, notesY + 4, {
         maxWidth: contentWidth,
-        lineHeightFactor: 1.3
+        lineHeightFactor: 1.2
       });
     }
 
-    // Footer with optimized positioning
+    // Compact footer
     const pageHeight = doc.internal.pageSize.height;
-    doc.setFontSize(9);
+    doc.setFontSize(10); // Increased font size for footer
+    doc.setFont('helvetica', 'bold');
     doc.setTextColor(...colors.primary);
     doc.text('Thank you for your business!', pageWidth / 2, pageHeight - 15, {
       align: 'center'
     });
 
-    // Preview watermark if needed
     if (isPreview) {
-      doc.setTextColor(200, 200, 200);
+      doc.setTextColor(150, 150, 150); // Gray color for preview
       doc.setFontSize(60);
+      doc.setFont('helvetica', 'normal'); // Not bold
       doc.text('PREVIEW', pageWidth / 2, pageHeight / 2, {
         align: 'center',
         angle: 45
