@@ -21,7 +21,25 @@ const BillGenerator = () => {
   const [showUserForm, setShowUserForm] = useState(false);
   const [formKey, setFormKey] = useState(0); // For form reset handling
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+  const [progress, setProgress] = useState(0);
 
+  useEffect(() => {
+    let progress = 0;
+
+    // Step 1: Company Details - 50% of total progress
+    const userInfo = localStorage.getItem('userInvoiceInfo');
+    if (userInfo) {
+      progress += 50; // Give 50% progress when user info is filled
+    }
+
+    // Step 2: Excel Upload - 50% of total progress
+    if (file) {
+      progress += 50;
+    }
+
+    setProgress(progress);
+  }, [file, showUserForm, pdfBlob]);
+  
   // Helper function to verify if something is a valid Blob
   const isValidBlob = (blob) => {
     return blob instanceof Blob || blob instanceof File;
@@ -187,82 +205,55 @@ const handleSave = async (data) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-xl p-8 space-y-8">
-          <div className="flex justify-between items-center">
-            <h3 className="text-xl font-semibold text-gray-800">
-              Professional Invoice Generator
-            </h3>
+        <div className="bg-white shadow-2xl rounded-2xl p-10">
+          <div className="mb-6">
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
+              <div className="bg-emerald-600 h-3 rounded-full" style={{ width: `${progress}%` }}></div>
+            </div>
+            <p className="text-center text-gray-700 font-medium">Progress: {progress.toFixed(0)}%</p>
+          </div>
+
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-semibold text-emerald-700 font-serif">Professional Invoice Generator</h2>
             <button
               onClick={() => setShowUserForm(!showUserForm)}
-              className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
+              className="text-emerald-600 hover:text-emerald-800 font-medium flex items-center gap-2 transition"
             >
               <FontAwesomeIcon icon={faEdit} className="w-4 h-4" />
               {showUserForm ? "Hide Company Info" : "Edit Company Info"}
             </button>
           </div>
 
-          {showUserForm && (
-            <div className="border rounded-lg p-6 bg-gray-50">
-              <UserInfoForm key={formKey} onSave={handleUserInfoSave} />
-            </div>
-          )}
+          <h4 className="text-lg font-semibold text-gray-800 font-serif mb-2">Step 1: Add Company Details</h4>
+          {showUserForm && <UserInfoForm key={formKey} onSave={handleUserInfoSave} />}
 
-          <div className="space-y-6">
-            <div>
-              <h4 className="text-lg font-semibold text-gray-800 mb-4">
-                Upload Invoice Data
-              </h4>
-              <FileUploadSection
-                file={file}
-                onDownloadTemplate={downloadTemplate}
-                onFileUpload={handleFileUpload}
-              />
-            </div>
+          <h4 className="text-lg font-semibold text-gray-800 font-serif mt-6 mb-2">Step 2: Upload Invoice Data</h4>
+          <FileUploadSection file={file} onDownloadTemplate={downloadTemplate} onFileUpload={handleFileUpload} />
 
-            {loading && (
-              <div className="flex justify-center">
-                <LoadingSpinner />
-              </div>
-            )}
-
-            {error && (
-              <div
-                className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg"
-                role="alert"
-              >
-                <span className="block sm:inline">{error}</span>
-              </div>
-            )}
-
-            {preview && !loading && (
-              <div className="space-y-8">
-                <BillPreview
+          {loading && <LoadingSpinner />}
+          {error && <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg">{error}</div>}
+          {preview && !loading && (
+            <>
+               <BillPreview
   preview={preview}
   onPreviewChange={setPreview}
-  onSave={handleSave}
-/>
+  onSave={handleSave} />
+              {pdfBlob && <PDFPreview pdfBlob={pdfBlob} />}
+            </>
+          )}
 
-                {pdfBlob && isValidBlob(pdfBlob) && (
-                  <PDFPreview pdfBlob={pdfBlob} />
-                )}
+          <h4 className="text-lg font-semibold text-gray-800 font-serif mt-6 mb-2">Step 3: Download Invoice PDF</h4>
+          <button
+            onClick={handleDownload}
+            disabled={loading}
+            className={`w-full ${loading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"} text-white font-semibold py-4 px-6 rounded-lg flex items-center justify-center gap-2 transition duration-200 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
 
-                <button
-                  onClick={handleDownload}
-                  disabled={loading}
-                  className={`w-full ${
-                    loading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"
-                  } text-white font-semibold py-4 px-6 rounded-lg flex items-center justify-center gap-2 transition duration-200 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  <FontAwesomeIcon icon={faDownload} className="w-5 h-5" />
-                  <span className="font-medium">
-                    {loading ? "Generating PDF..." : "Download Invoice PDF"}
-                  </span>
-                </button>
-              </div>
-            )}
-          </div>
+            <FontAwesomeIcon icon={faDownload} className="w-5 h-5" />
+            <span className="font-medium">{loading ? "Generating PDF..." : "Download Invoice PDF"}</span>
+          </button>
         </div>
       </div>
     </div>
